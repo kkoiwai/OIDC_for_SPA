@@ -1,0 +1,19 @@
+{
+  "name": "oidc-login-spa-demo",
+  "version": "1.0.0",
+  "description": "very simple implementation of tri-party (Browser - RP - IDP) OIDC login",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "Apache2.0",
+  "dependencies": {
+    "base64url": "^3.0.1",
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "pkce-challenge": "^2.2.0",
+    "sqlite3": "^5.0.2"
+  }
+}
