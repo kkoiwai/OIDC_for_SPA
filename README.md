@@ -1,4 +1,4 @@
-# OIDC Login SPA demo
+ # OIDC Login SPA demo
 
 ## About
 
@@ -30,4 +30,4 @@ OIDCはinplicitやhybrindフローではなく、codeフローとなっており
 
 ただし、あくまでOIDCの動作デモとして作成しているため、エラー処理が完全ではないこと、仕様の完全準拠や安全性を保証するものではありません。
 
-詳細はQiitaをご参照ください。 (記事作成中)
+詳細はQiitaをご参照ください。 (https://qiita.com/kkoiwai/items/3e1205bf60b11c8d9649)
