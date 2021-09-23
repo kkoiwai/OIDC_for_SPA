@@ -329,7 +329,13 @@ app.get("/", function (req, res, next) {
 
 app.get("/cb_app", function (req, res, next) {
     if(req.query.code){
-        res.redirect(301, RE_REDIRECT_URI_APP + "?code=" + req.query.code);
+        var querystr = "";
+        for (var propName in req.query) {
+            if (req.query.hasOwnProperty(propName)) {
+                querystr += propName + "=" + req.query[propName] + "&";
+            }
+        }
+        res.redirect(301, RE_REDIRECT_URI_APP + "?" + querystr);
     }else{
         res.redirect(301, "/");
     }
