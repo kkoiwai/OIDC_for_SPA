@@ -6,6 +6,8 @@ const OIDC_CLIENT_ID = "<YOUR CLIENT ID>.apps.googleusercontent.com"
 const OIDC_CLIENT_SECRET = "<YOUR CLIENT SECRET>"
 const OIDC_SCOPE = "openid profile email"
 const OIDC_REDIRECT_URI = "http://localhost:3000/"
+const OIDC_REDIRECT_URI_APP = "http://localhost:3000/cb_app"
+const RE_REDIRECT_URI_APP = "customurlscheme://callback"
 
 
 const express = require("express");
@@ -93,7 +95,11 @@ async function generatePkceAndSaveWithSessionId(req, res, next) {
 async function generateOidcAuthorizationUrl(req, res, next) {
 
     // if redirect_uri varies depends on the client type, do something here
-    redirect_uri = OIDC_REDIRECT_URI
+    if(req.query.app){
+        redirect_uri = OIDC_REDIRECT_URI_APP
+    }else{
+        redirect_uri = OIDC_REDIRECT_URI
+    }
 
     // if Authorization endpoint already has query parameters, 
     // additional parameters should be concatenated with "&"
@@ -316,3 +322,15 @@ app.get("/", function (req, res, next) {
     res.render("index", {});
 });
 
+
+
+////////////////////////////////////////////////////////////////////
+// call back for native app with custom url scheme
+
+app.get("/cb_app", function (req, res, next) {
+    if(req.query.code){
+        res.redirect(301, RE_REDIRECT_URI_APP + "?code=" + req.query.code);
+    }else{
+        res.redirect(301, "/");
+    }
+});
