@@ -4,6 +4,10 @@
 
 very simple implementation of tri-party (Browser - RP - IDP) OIDC login
 
+## Try it
+
+https://oidc-for-spa.glitch.me/
+
 ## How to use this
 
 1. Setup OIDC (ex. Google Login)
@@ -12,7 +16,6 @@ very simple implementation of tri-party (Browser - RP - IDP) OIDC login
 
 ```
 $ npm install
-$ node sqlite_init.js
 $ node app.js
 ```
 4. open browser and goto http://localhost:3030

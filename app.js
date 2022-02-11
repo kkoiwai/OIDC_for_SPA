@@ -23,6 +23,9 @@ const sqlite3 = require('sqlite3')
 const db = new sqlite3.Database('oidc_db.sqlite');
 db.serialize();
 
+// create session table
+db.run("CREATE TABLE IF NOT EXISTS session (session_id TEXT UNIQUE NOT NULL, pkce_code TEXT, subject_id TEXT, user_info TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime')))");
+
 
 const server = app.listen(3000, function () {
     console.log("Node.js is listening to PORT:" + server.address().port);

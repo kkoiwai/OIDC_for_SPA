@@ -1,3 +1,6 @@
+// now you don't have to call this.
+// this is left for cleaning table
+
 const sqlite3 = require('sqlite3'),
     db = new sqlite3.Database('oidc_db.sqlite');
 db.serialize();
