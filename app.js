@@ -18,13 +18,19 @@ const jwt = require('jsonwebtoken');
 const webclient = require("request");
 const crypto = require("crypto");
 
-// Connect to session db
-const sqlite3 = require('sqlite3')
-const db = new sqlite3.Database('oidc_db.sqlite');
-db.serialize();
+// // Connect to session db
+// const sqlite3 = require('sqlite3')
+// const db = new sqlite3.Database('oidc_db.sqlite');
+// db.serialize();
+// 
+// // create session table
+// db.run("CREATE TABLE IF NOT EXISTS session (session_id TEXT UNIQUE NOT NULL, pkce_code TEXT, subject_id TEXT, user_info TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime')))");
 
-// create session table
-db.run("CREATE TABLE IF NOT EXISTS session (session_id TEXT UNIQUE NOT NULL, pkce_code TEXT, subject_id TEXT, user_info TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime')))");
+// Imports the Google Cloud client library
+const { Datastore } = require('@google-cloud/datastore');
+// Creates a client
+const datastore = new Datastore();
+
 
 
 const server = app.listen(3000, function () {
@@ -51,14 +57,40 @@ async function generateSessionIdAtLogin(req, res, next) {
 
     // Just in case, make sure that no duplicate sessin id is created.
     try {
-        const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? ', [session_id]);
+        // const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? ', [session_id]);
+        const query = datastore
+            .createQuery('Session')
+            .filter('__key__', '>', datastore.key(['Session', session_id]));
+
+        const [val] = await datastore.runQuery(query);
+        console.log(val);
 
         // if duplicate found (that is a catastorophy!)
-        if (val) {
-            await sqlite_write(`UPDATE session SET active = 0 WHERE session_id = ?`, [session_id]);
+        if (val.length) {
+            // await sqlite_write(`UPDATE session SET active = 0 WHERE session_id = ?`, [session_id]);
             console.error("duplicate session id at generateSessionIdAtLogin: " + val);
-            res.json({ error: "server error (0101)" });
-            next("session id already exists")
+            // res.json({ error: "server error (0101)" });
+            // next("session id already exists")
+
+            const transaction = datastore.transaction();
+            const sessionKey = datastore.key(['Session', session_id]);
+            console.log(sessionKey);
+            console.log(sessionKey.path);
+            try {
+                await transaction.run();
+                const [session] = await transaction.get(sessionKey);
+                session.active = 0;
+                transaction.save({
+                    key: sessionKey,
+                    data: session,
+                });
+                await transaction.commit();
+                res.json({ error: "server error (0101)" });
+                next("session id already exists")
+            } catch (err) {
+                await transaction.rollback();
+                throw err;
+            }
         }
 
     } catch (err) {
@@ -83,7 +115,20 @@ async function generatePkceAndSaveWithSessionId(req, res, next) {
     const verifier = pkce.code_verifier;
 
     // save session_id and PKCE code(verifier)
-    await sqlite_write(`INSERT INTO session (session_id, pkce_code) VALUES (?, ?)`, [session_id, verifier]);
+    // await sqlite_write(`INSERT INTO session (session_id, pkce_code) VALUES (?, ?)`, [session_id, verifier]);
+
+    // The Cloud Datastore key for the new entity
+    const sessionKey = datastore.key(['Session', session_id]);
+    // Prepares the new entity
+    const session = {
+        key: sessionKey,
+        data: {
+            pkce_code: verifier,
+            active: 1
+        },
+    };
+    // Saves the entity
+    await datastore.save(session);
 
     // save challenge
     req.oidcspa.pkce_challenge = challenge;
@@ -136,7 +181,14 @@ async function getPkceVerifierWithSessionId(req, res, next) {
     console.log("getPkceVerifierWithSessionId " + session_id);
 
     try {
-        const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? AND active = 1', [session_id]);
+        // const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? AND active = 1', [session_id]);
+        const query = datastore
+            .createQuery('Session')
+            .filter('__key__', '>', datastore.key(['Session', session_id]))
+            .filter('active', '=', 1);
+
+        const [val] = await datastore.runQuery(query);
+
         console.log(val);
         if (val) {
             // pkce_verifier is found

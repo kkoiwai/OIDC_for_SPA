@@ -1,2 +1,4 @@
 node_modules/
 *.sqlite
+service-account-key.json
+.env
