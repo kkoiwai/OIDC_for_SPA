@@ -1,11 +1,12 @@
 
 // SETTINGS - set to fit to your environment
-const OIDC_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
-const OIDC_TOKEN_ENDPOINT = "https://www.googleapis.com/oauth2/v4/token"
-const OIDC_CLIENT_ID = "<YOUR CLIENT ID>.apps.googleusercontent.com"
-const OIDC_CLIENT_SECRET = "<YOUR CLIENT SECRET>"
-const OIDC_SCOPE = "openid profile email"
-const OIDC_REDIRECT_URI = "http://localhost:3000/"
+require('dotenv').config();
+const OIDC_AUTH_ENDPOINT = process.env.OIDC_AUTH_ENDPOINT
+const OIDC_TOKEN_ENDPOINT = process.env.OIDC_TOKEN_ENDPOINT
+const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID
+const OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET
+const OIDC_SCOPE = process.env.OIDC_SCOPE
+const OIDC_REDIRECT_URI = process.env.OIDC_REDIRECT_URI
 
 
 const express = require("express");
