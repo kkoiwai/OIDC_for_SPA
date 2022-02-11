@@ -11,7 +11,7 @@ https://oidc-for-spa.glitch.me/
 ## How to use this
 
 1. Setup OIDC (ex. Google Login)
-2. open app.js and edit SETTINGS
+2. open .env.sample, edit settings and SAVE AS .env
 3. open console and type following commands
 
 ```
