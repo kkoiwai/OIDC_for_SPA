@@ -61,7 +61,7 @@ async function generateSessionIdAtLogin(req, res, next) {
         // const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? ', [session_id]);
         const query = datastore
             .createQuery('Session')
-            .filter('__key__', '>', datastore.key(['Session', session_id]));
+            .filter('__key__', '=', datastore.key(['Session', session_id]));
 
         const [val] = await datastore.runQuery(query);
         console.log(val);
@@ -185,16 +185,16 @@ async function getPkceVerifierWithSessionId(req, res, next) {
         // const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? AND active = 1', [session_id]);
         const query = datastore
             .createQuery('Session')
-            .filter('__key__', '>', datastore.key(['Session', session_id]))
+            .filter('__key__', '=', datastore.key(['Session', session_id]))
             .filter('active', '=', 1);
 
         const [val] = await datastore.runQuery(query);
 
         console.log(val);
-        if (val) {
+        if (val[0].pkce_code) {
             // pkce_verifier is found
             if (!req.oidcspa) req.oidcspa = new Object();
-            req.oidcspa.pkce_verifier = val.pkce_code
+            req.oidcspa.pkce_verifier = val[0].pkce_code
             next()
         } else {
             res.json({ error: "server error(0201)" });
@@ -245,10 +245,34 @@ async function retrieveTokenFromIdp(req, res, next) {
             res.json({ error: "login error (0302)" });
         } else {
             // save user_info
-            sqlite_write('update session set user_info = ?, subject_id = ? where session_id = ? ', [JSON.stringify(decoded), decoded.sub, session_id]);
+            // sqlite_write('update session set user_info = ?, subject_id = ? where session_id = ? ', [JSON.stringify(decoded), decoded.sub, session_id]);
 
+            const transaction = datastore.transaction();
+            const sessionKey = datastore.key(['Session', session_id]);
+            console.log(sessionKey);
+            console.log(sessionKey.path);
+            (async () => {
+                try {
+                    await transaction.run();
+                    const [session] = await transaction.get(sessionKey);
+                    session.user_info = JSON.stringify(decoded);
+                    session.subject_id = decoded.sub
+                    transaction.save({
+                        key: sessionKey,
+                        data: session,
+                    });
+                    await transaction.commit();
+
+                    //return user_info
+                    res.json({ responce: decoded });
+                } catch (err) {
+                    await transaction.rollback();
+                    res.json({ error: "server error (0303)" });
+                    next("error at retrieveTokenFromIdp: ")
+                }
+            })();
             //return user_info
-            res.json({ responce: decoded });
+            // res.json({ responce: decoded });
         }
     });
 
@@ -269,10 +293,20 @@ async function getUserInfoWithSessionId(req, res, next) {
     console.log("getUserInfoWithSessionId " + session_id);
 
     try {
-        const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? AND active = 1', [session_id]);
+        // const val = await sqlite_read('SELECT * FROM session WHERE session_id = ? AND active = 1', [session_id]);
+        // console.log(val);
+
+        const query = datastore
+            .createQuery('Session')
+            .filter('__key__', '=', datastore.key(['Session', session_id]))
+            .filter('active', '=', 1);
+
+        const [val] = await datastore.runQuery(query);
         console.log(val);
-        if (val) {
-            res.json({ sub: val.subject_id, user_info: val.user_info });
+
+        if (val.length) {
+            session = val[0];
+            res.json({ sub: session.subject_id, user_info: session.user_info });
         } else {
             console.error("user_info not found with sessionid ");
             res.json({ error: "server error (0401)" });
@@ -298,9 +332,27 @@ async function deactivateSessionId(req, res, next) {
 
     session_id = req.oidcspa.session_id;
 
-    await sqlite_write(`UPDATE session SET active = 0 WHERE session_id = ?`, [session_id]);
+    // await sqlite_write(`UPDATE session SET active = 0 WHERE session_id = ?`, [session_id]); 
+    const transaction = datastore.transaction();
+    const sessionKey = datastore.key(['Session', session_id]);
+    console.log(sessionKey);
+    console.log(sessionKey.path);
+    try {
+        await transaction.run();
+        const [session] = await transaction.get(sessionKey);
+        session.active = 0;
+        transaction.save({
+            key: sessionKey,
+            data: session,
+        });
+        await transaction.commit();
 
-    res.json({ success: "log out" });
+        res.json({ success: "log out" });
+    } catch (err) {
+        await transaction.rollback();
+        res.json({ error: "server error (0501)" });
+        next("error at deactivateSessionId: ")
+    }
 
 
 }
@@ -334,32 +386,32 @@ function getSessionIdFromRequest(req, res, next) {
 // shared founction: make sqlite async
 // source: https://note.kiriukun.com/entry/20190915-sqlite3-on-nodejs-with-await
 
-function sqlite_read(sql, params) {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            console.log("sqlite_read: " + sql + JSON.stringify(params))
-            if (err) {
-                console.error("sqlite_read: " + err)
-                reject(err);
-            }
-            console.log("sqlite_read: " + JSON.stringify(row))
-            resolve(row);
-        });
-    });
-}
+// function sqlite_read(sql, params) {
+//     return new Promise((resolve, reject) => {
+//         db.get(sql, params, (err, row) => {
+//             console.log("sqlite_read: " + sql + JSON.stringify(params))
+//             if (err) {
+//                 console.error("sqlite_read: " + err)
+//                 reject(err);
+//             }
+//             console.log("sqlite_read: " + JSON.stringify(row))
+//             resolve(row);
+//         });
+//     });
+// }
 
-function sqlite_write(sql, params) {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, (err) => {
-            console.log("sqlite_write: " + sql + JSON.stringify(params))
-            if (err) {
-                console.error("sqlite_write: " + err)
-                reject(err);
-            }
-            resolve();
-        });
-    });
-}
+// function sqlite_write(sql, params) {
+//     return new Promise((resolve, reject) => {
+//         db.run(sql, params, (err) => {
+//             console.log("sqlite_write: " + sql + JSON.stringify(params))
+//             if (err) {
+//                 console.error("sqlite_write: " + err)
+//                 reject(err);
+//             }
+//             resolve();
+//         });
+//     });
+// }
 
 
 ////////////////////////////////////////////////////////////////////
